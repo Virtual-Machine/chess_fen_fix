@@ -17,7 +17,6 @@ use crate::zobrist::Zobrist;
 use std::convert::{TryFrom, TryInto};
 use std::fmt;
 use std::hash::{Hash, Hasher};
-use std::mem;
 use std::str::FromStr;
 
 /// A representation of a chess board.  That's why you're here, right?
@@ -32,6 +31,8 @@ pub struct Board {
     checkers: BitBoard,
     hash: u64,
     en_passant: Option<Square>,
+    pub half_move_clock: u32,
+    pub full_move_counter: u32,
 }
 
 /// What is the status of this game?
@@ -71,6 +72,8 @@ impl Board {
             checkers: EMPTY,
             hash: 0,
             en_passant: None,
+            half_move_clock: 0,
+            full_move_counter: 1,
         }
     }
 
@@ -873,10 +876,12 @@ impl Board {
         let move_bb = source_bb ^ dest_bb;
         let moved = self.piece_on(source).unwrap();
 
+        result.half_move_clock += 1;
         result.xor(moved, source_bb, self.side_to_move);
         result.xor(moved, dest_bb, self.side_to_move);
         if let Some(captured) = self.piece_on(dest) {
             result.xor(captured, dest_bb, !self.side_to_move);
+            result.half_move_clock = 0;
         }
 
         #[allow(deprecated)]
@@ -921,6 +926,7 @@ impl Board {
         if moved == Piece::Knight {
             result.checkers ^= get_knight_moves(ksq) & dest_bb;
         } else if moved == Piece::Pawn {
+            result.half_move_clock = 0;
             if let Some(Piece::Knight) = m.get_promotion() {
                 result.xor(Piece::Pawn, dest_bb, self.side_to_move);
                 result.xor(Piece::Knight, dest_bb, self.side_to_move);
@@ -971,6 +977,9 @@ impl Board {
             }
         }
 
+        if result.side_to_move == Color::Black {
+            result.full_move_counter += 1;
+        }
         result.side_to_move = !result.side_to_move;
         result
     }

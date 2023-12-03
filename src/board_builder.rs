@@ -53,6 +53,8 @@ pub struct BoardBuilder {
     side_to_move: Color,
     castle_rights: [CastleRights; 2],
     en_passant: Option<File>,
+    pub half_move_clock: u32,
+    pub full_move_counter: u32,
 }
 
 impl BoardBuilder {
@@ -81,6 +83,8 @@ impl BoardBuilder {
             side_to_move: Color::White,
             castle_rights: [CastleRights::NoRights, CastleRights::NoRights],
             en_passant: None,
+            half_move_clock: 0,
+            full_move_counter: 1,
         }
     }
 
@@ -100,7 +104,9 @@ impl BoardBuilder {
     ///         Color::Black,
     ///         CastleRights::NoRights,
     ///         CastleRights::NoRights,
-    ///         None)
+    ///         None,
+    ///         0,
+    ///         1)
     ///     .try_into()?;
     /// # Ok(())
     /// # }
@@ -110,12 +116,16 @@ impl BoardBuilder {
         white_castle_rights: CastleRights,
         black_castle_rights: CastleRights,
         en_passant: Option<File>,
+        half_move_clock: u32,
+        full_move_counter: u32,
     ) -> BoardBuilder {
         let mut result = BoardBuilder {
             pieces: [None; 64],
             side_to_move: side_to_move,
             castle_rights: [white_castle_rights, black_castle_rights],
             en_passant: en_passant,
+            half_move_clock: half_move_clock,
+            full_move_counter: full_move_counter,
         };
 
         for piece in pieces.into_iter() {
@@ -330,12 +340,13 @@ impl fmt::Display for BoardBuilder {
 
         write!(f, " ")?;
         if let Some(sq) = self.get_en_passant() {
-            write!(f, "{}", sq)?;
+            write!(f, "{}", Square::ubackward(&sq, !self.side_to_move))?;
         } else {
             write!(f, "-")?;
         }
 
-        write!(f, " 0 1")
+        write!(f, " {} ", self.half_move_clock)?;
+        write!(f, "{}", self.full_move_counter)
     }
 }
 
@@ -496,6 +507,8 @@ impl From<&Board> for BoardBuilder {
             board.castle_rights(Color::White),
             board.castle_rights(Color::Black),
             board.en_passant().map(|sq| sq.get_file()),
+            board.half_move_clock,
+            board.full_move_counter,
         )
     }
 }
